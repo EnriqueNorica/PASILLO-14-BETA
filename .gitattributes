@@ -134,6 +134,8 @@ Packages/packages-lock.json linguist-generated
 *.tif                   lfs
 *.tiff                  lfs
 *.webp                  lfs
+# The small runtime title screen is stored directly in Git to keep cloning simple.
+Assets/Resources/Pasillo14Title.jpg -filter -diff -merge -text
 
 # Compressed Archive
 *.7z                    lfs
