@@ -6,10 +6,10 @@ namespace Pasillo14
     [RequireComponent(typeof(Rigidbody2D))]
     public sealed class Pasillo14Enemy : MonoBehaviour
     {
-        private const float ViewDistance = 9f;
-        private const float ViewHalfAngle = 55f;
-        private const float MoveSpeed = 4.8f;
-        private const float PatrolSpeed = 2.1f;
+        private const float ViewDistance = 5.5f;
+        private const float ViewHalfAngle = 42f;
+        private const float MoveSpeed = 3.4f;
+        private const float PatrolSpeed = 1.55f;
         private const float CatchDistance = 0.75f;
         private const float SearchDuration = 6f;
 
@@ -23,6 +23,8 @@ namespace Pasillo14
         private float searchTimer;
         private float patrolWaitTimer;
         private bool chasing;
+
+        public bool IsChasing => chasing;
 
         public void Initialize(Pasillo14Game owner, Pasillo14Player? target, Rigidbody2D rigidbody)
         {
@@ -39,16 +41,6 @@ namespace Pasillo14
                 if (toPlayer.sqrMagnitude > 0.001f)
                     Face(toPlayer.normalized);
             }
-        }
-
-        public void ReceiveSecurityAlert(Vector2 lastKnownPlayerPosition)
-        {
-            if (game == null || player == null)
-                return;
-
-            chasing = true;
-            searchTimer = SearchDuration;
-            lastSeenPosition = lastKnownPlayerPosition;
         }
 
         private void Update()

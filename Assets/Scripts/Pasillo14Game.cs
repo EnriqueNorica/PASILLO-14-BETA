@@ -1,10 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Pasillo14
 {
     public sealed class Pasillo14Game : MonoBehaviour
     {
+        private enum ScreenState { MainMenu, Settings, Playing, GameOver, Victory }
+        private enum RebindAction { None, Up, Left, Down, Right, Sprint, Deliver }
+
         private const float RoomWidth = 24f;
         private const float RoomDepth = 23f;
         private const float HallHalfHeight = 4.2f;
@@ -21,15 +25,36 @@ namespace Pasillo14
         private int score;
         private int studentsServed;
         private float timeRemaining;
-        private bool securityAlarmTriggered;
         private bool hasWon;
         private bool wasCaught;
+        private ScreenState screenState = ScreenState.MainMenu;
+        private ScreenState settingsReturnState = ScreenState.MainMenu;
+        private RebindAction rebindAction;
+        private bool sprintButtonToggled;
+        private Key moveUpKey = Key.W;
+        private Key moveLeftKey = Key.A;
+        private Key moveDownKey = Key.S;
+        private Key moveRightKey = Key.D;
+        private Key sprintKey = Key.LeftShift;
+        private Key deliverKey = Key.E;
+        private float musicVolume = 0.65f;
+        private float soundVolume = 0.8f;
         private string message = "Recoge los libros y entrégaselos a tus compañeros.";
         private Pasillo14Player? player;
         private Pasillo14Enemy? teacher;
         private Camera? followCamera;
         private Vector3 cameraVelocity;
         private static Sprite? squareSprite;
+        private Pasillo14Audio? audioManager;
+        private Texture2D? titleTexture;
+
+        public Key MoveUpKey => moveUpKey;
+        public Key MoveLeftKey => moveLeftKey;
+        public Key MoveDownKey => moveDownKey;
+        public Key MoveRightKey => moveRightKey;
+        public Key SprintKey => sprintKey;
+        public Key DeliverKey => deliverKey;
+        public bool SprintButtonToggled => sprintButtonToggled;
 
         public static Sprite SquareSprite
         {
@@ -44,7 +69,11 @@ namespace Pasillo14
 
         private void Start()
         {
-            BuildRoom();
+            LoadPreferences();
+            titleTexture = Resources.Load<Texture2D>("Pasillo14Title");
+            audioManager = gameObject.AddComponent<Pasillo14Audio>();
+            audioManager.SetVolumes(musicVolume, soundVolume);
+            audioManager.SetTheme(Pasillo14Audio.Theme.Menu);
         }
 
         private void BuildRoom()
@@ -67,8 +96,6 @@ namespace Pasillo14
             CreateClassroomDoors();
             CreateEnemy(GetDistantHallwaySpawn(new Vector2(-10f, 8.5f)));
             CreateStudents();
-            CreateSecurityCameras();
-
             CreateCollectible(new Vector2(-10f, 8f), new Color(0.94f, 0.36f, 0.18f));
             CreateCollectible(new Vector2(-5.5f, 6.1f), new Color(0.08f, 0.42f, 0.63f));
             CreateCollectible(new Vector2(-2f, 9f), new Color(0.81f, 0.18f, 0.26f));
@@ -109,6 +136,8 @@ namespace Pasillo14
             camera.transform.position = new Vector3(8f, -9f, 13f);
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.34f, 0.54f, 0.79f);
+            if (camera.GetComponent<AudioListener>() == null && FindAnyObjectByType<AudioListener>() == null)
+                camera.gameObject.AddComponent<AudioListener>();
             followCamera = camera;
         }
 
@@ -622,31 +651,6 @@ namespace Pasillo14
             students.Add(student);
         }
 
-        private void CreateSecurityCameras()
-        {
-            CreateSecurityCamera(new Vector2(-8f, HallHalfHeight - 0.22f), Vector2.right);
-            CreateSecurityCamera(new Vector2(0f, HallHalfHeight - 0.22f), Vector2.right);
-            CreateSecurityCamera(new Vector2(8f, HallHalfHeight - 0.22f), Vector2.left);
-            CreateSecurityCamera(new Vector2(-8f, -HallHalfHeight + 0.22f), Vector2.right);
-            CreateSecurityCamera(new Vector2(0f, -HallHalfHeight + 0.22f), Vector2.left);
-            CreateSecurityCamera(new Vector2(8f, -HallHalfHeight + 0.22f), Vector2.left);
-        }
-
-        private void CreateSecurityCamera(Vector2 position, Vector2 direction)
-        {
-            var cameraObject = new GameObject("Cámara de seguridad");
-            cameraObject.transform.SetParent(transform);
-            cameraObject.transform.position = position;
-            CreateVisualBox(cameraObject.transform, "Soporte de cámara", new Vector3(0f, 0f, 2.35f),
-                new Vector3(0.14f, 0.14f, 0.45f), new Color(0.42f, 0.28f, 0.13f));
-            CreateVisualBox(cameraObject.transform, "Carcasa de cámara", new Vector3(0f, 0f, 2.64f),
-                new Vector3(0.48f, 0.34f, 0.28f), new Color(0.08f, 0.12f, 0.14f));
-            CreateVisualBox(cameraObject.transform, "Lente", new Vector3(direction.x * 0.25f, direction.y * 0.25f, 2.64f),
-                new Vector3(0.17f, 0.17f, 0.17f), new Color(0.08f, 0.70f, 1f));
-            var securityCamera = cameraObject.AddComponent<Pasillo14SecurityCamera>();
-            securityCamera.Initialize(this, player, teacher, direction);
-        }
-
         private void CreateCollectible(Vector2 position, Color color)
         {
             var item = new GameObject("Libro escolar");
@@ -726,7 +730,8 @@ namespace Pasillo14
 
             hasWon = true;
             score += Mathf.CeilToInt(timeRemaining) * 2;
-            message = $"¡Todos recibieron sus libros! Puntaje final: {score}. Presiona R para jugar otra vez.";
+            message = $"¡Todos recibieron sus libros! Puntaje final: {score}.";
+            screenState = ScreenState.Victory;
             player?.Stop();
         }
 
@@ -782,7 +787,8 @@ namespace Pasillo14
             }
 
             hasWon = true;
-            message = "¡Llegaste a la salida! Presiona R para jugar otra vez.";
+            message = "¡Llegaste a la salida!";
+            screenState = ScreenState.Victory;
             player?.Stop();
         }
 
@@ -791,36 +797,55 @@ namespace Pasillo14
             if (hasWon || wasCaught)
                 return;
             wasCaught = true;
-            message = "¡La Profesora te atrapó! Presiona R para intentarlo otra vez.";
+            message = "La Profesora te atrapó.";
+            screenState = ScreenState.GameOver;
+            audioManager?.SetTheme(Pasillo14Audio.Theme.Caught);
             player?.Stop();
-        }
-
-        public void NotifySecurityAlert()
-        {
-            if (securityAlarmTriggered || hasWon || wasCaught)
-                return;
-            securityAlarmTriggered = true;
-            message = "¡Una cámara te detectó! La Profesora recibió el aviso.";
         }
 
         private void Update()
         {
+            if (rebindAction != RebindAction.None)
+            {
+                CaptureRebind();
+                return;
+            }
+
+            if (screenState != ScreenState.Playing)
+                return;
+
+            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                screenState = ScreenState.MainMenu;
+                player?.Stop();
+                audioManager?.SetTheme(Pasillo14Audio.Theme.Menu);
+                return;
+            }
+
+            if (Keyboard.current != null && Keyboard.current[deliverKey].wasPressedThisFrame)
+                DeliverToNearbyStudent();
+            if (screenState != ScreenState.Playing)
+                return;
+
             if (!hasWon && !wasCaught)
             {
                 timeRemaining = Mathf.Max(0f, timeRemaining - Time.deltaTime);
                 if (timeRemaining <= 0f)
                 {
                     wasCaught = true;
-                    message = "¡Se acabó el tiempo! Presiona R para intentarlo otra vez.";
+                    message = "Se acabó el tiempo.";
+                    screenState = ScreenState.GameOver;
+                    audioManager?.SetTheme(Pasillo14Audio.Theme.Caught);
                     player?.Stop();
                 }
             }
 
-            if ((hasWon || wasCaught) && Pasillo14Player.RestartPressed())
-                RestartLevel();
+            if (teacher != null && player != null)
+                audioManager?.SetTheme(Vector2.Distance(teacher.transform.position, player.transform.position) < 6f
+                    ? Pasillo14Audio.Theme.Pursuit : Pasillo14Audio.Theme.Gameplay);
         }
 
-        private void RestartLevel()
+        private void StartGame()
         {
             for (int i = transform.childCount - 1; i >= 0; i--)
                 Destroy(transform.GetChild(i).gameObject);
@@ -829,15 +854,85 @@ namespace Pasillo14
             bookInventory = 0;
             score = 0;
             studentsServed = 0;
-            securityAlarmTriggered = false;
             hasWon = false;
             wasCaught = false;
+            sprintButtonToggled = false;
             message = "Recoge los libros y entrégaselos a tus compañeros.";
             students.Clear();
             player = null;
             teacher = null;
             cameraVelocity = Vector3.zero;
             BuildRoom();
+            screenState = ScreenState.Playing;
+            audioManager?.SetTheme(Pasillo14Audio.Theme.Gameplay);
+        }
+
+        private void DeliverToNearbyStudent()
+        {
+            if (player == null)
+                return;
+            foreach (Pasillo14Student student in students)
+                if (student.IsNear(player))
+                {
+                    student.DeliverFromPlayer();
+                    audioManager?.PlayUiSound();
+                    return;
+                }
+            message = "Acércate a un compañero para entregar libros.";
+        }
+
+        private void LoadPreferences()
+        {
+            moveUpKey = (Key)PlayerPrefs.GetInt("P14_Up", (int)Key.W);
+            moveLeftKey = (Key)PlayerPrefs.GetInt("P14_Left", (int)Key.A);
+            moveDownKey = (Key)PlayerPrefs.GetInt("P14_Down", (int)Key.S);
+            moveRightKey = (Key)PlayerPrefs.GetInt("P14_Right", (int)Key.D);
+            sprintKey = (Key)PlayerPrefs.GetInt("P14_Sprint", (int)Key.LeftShift);
+            deliverKey = (Key)PlayerPrefs.GetInt("P14_Deliver", (int)Key.E);
+            musicVolume = PlayerPrefs.GetFloat("P14_MusicVolume", 0.65f);
+            soundVolume = PlayerPrefs.GetFloat("P14_SoundVolume", 0.8f);
+        }
+
+        private void SavePreferences()
+        {
+            PlayerPrefs.SetInt("P14_Up", (int)moveUpKey);
+            PlayerPrefs.SetInt("P14_Left", (int)moveLeftKey);
+            PlayerPrefs.SetInt("P14_Down", (int)moveDownKey);
+            PlayerPrefs.SetInt("P14_Right", (int)moveRightKey);
+            PlayerPrefs.SetInt("P14_Sprint", (int)sprintKey);
+            PlayerPrefs.SetInt("P14_Deliver", (int)deliverKey);
+            PlayerPrefs.SetFloat("P14_MusicVolume", musicVolume);
+            PlayerPrefs.SetFloat("P14_SoundVolume", soundVolume);
+            PlayerPrefs.Save();
+            audioManager?.SetVolumes(musicVolume, soundVolume);
+        }
+
+        private void CaptureRebind()
+        {
+            if (Keyboard.current == null)
+                return;
+            if (Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                rebindAction = RebindAction.None;
+                return;
+            }
+            foreach (var key in Keyboard.current.allKeys)
+            {
+                if (!key.wasPressedThisFrame || key.keyCode == Key.None || key.keyCode == Key.Escape)
+                    continue;
+                switch (rebindAction)
+                {
+                    case RebindAction.Up: moveUpKey = key.keyCode; break;
+                    case RebindAction.Left: moveLeftKey = key.keyCode; break;
+                    case RebindAction.Down: moveDownKey = key.keyCode; break;
+                    case RebindAction.Right: moveRightKey = key.keyCode; break;
+                    case RebindAction.Sprint: sprintKey = key.keyCode; break;
+                    case RebindAction.Deliver: deliverKey = key.keyCode; break;
+                }
+                rebindAction = RebindAction.None;
+                SavePreferences();
+                break;
+            }
         }
 
         private void LateUpdate()
@@ -873,6 +968,16 @@ namespace Pasillo14
 
         private void OnGUI()
         {
+            if (screenState != ScreenState.Playing)
+            {
+                DrawMenuBackdrop();
+                if (screenState == ScreenState.MainMenu) DrawMainMenu();
+                else if (screenState == ScreenState.Settings) DrawSettings();
+                else if (screenState == ScreenState.GameOver) DrawEndScreen(false);
+                else if (screenState == ScreenState.Victory) DrawEndScreen(true);
+                return;
+            }
+
             GUI.Box(new Rect(16f, 16f, 550f, 200f), GUIContent.none);
             GUI.Label(new Rect(30f, 22f, 510f, 22f), $"PASILLO 14    Libros: {booksCollected}/{RequiredBooks} recogidos | {booksDelivered} entregados | Mochila: {bookInventory}");
             int seconds = Mathf.CeilToInt(timeRemaining);
@@ -901,8 +1006,10 @@ namespace Pasillo14
             GUI.color = oldColor;
             GUI.Label(new Rect(330f, 69f, 95f, 22f), $"{staminaPercent}%");
             GUI.Label(new Rect(30f, 95f, 500f, 22f), message);
-            GUI.Label(new Rect(30f, 121f, 500f, 20f), "WASD/flechas: moverte según cámara    Shift: correr");
-            GUI.Label(new Rect(30f, 145f, 500f, 20f), "Recoge libros, acércate a cada compañero y pulsa E para entregarlos.");
+            GUI.Label(new Rect(30f, 121f, 500f, 20f), $"Mover: {moveUpKey}/{moveLeftKey}/{moveDownKey}/{moveRightKey}    Correr: {sprintKey}");
+            GUI.Label(new Rect(30f, 145f, 300f, 20f), $"Acércate a un compañero y pulsa {deliverKey} para entregar.");
+            if (GUI.Button(new Rect(340f, 140f, 190f, 30f), "ENTREGAR TAREA"))
+                DeliverToNearbyStudent();
             string deliveryStatus = "";
             for (int i = 0; i < students.Count; i++)
             {
@@ -912,6 +1019,117 @@ namespace Pasillo14
                     deliveryStatus += "   ";
             }
             GUI.Label(new Rect(30f, 168f, 510f, 20f), deliveryStatus);
+            if (GUI.Button(new Rect(Screen.width - 150f, 18f, 132f, 30f), "PAUSA / MENÚ"))
+            {
+                screenState = ScreenState.MainMenu;
+                player?.Stop();
+                audioManager?.SetTheme(Pasillo14Audio.Theme.Menu);
+            }
+            if (GUI.Button(new Rect(Screen.width - 150f, 55f, 132f, 30f), sprintButtonToggled ? "CORRER: SÍ" : "CORRER: NO"))
+                sprintButtonToggled = !sprintButtonToggled;
+        }
+
+        private void DrawMenuBackdrop()
+        {
+            if (titleTexture != null)
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), titleTexture, ScaleMode.ScaleAndCrop);
+            else
+            {
+                GUI.color = new Color(0.16f, 0.31f, 0.38f);
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+                GUI.color = Color.white;
+            }
+            GUI.color = new Color(0.025f, 0.07f, 0.12f, 0.76f);
+            GUI.DrawTexture(new Rect(Screen.width * 0.66f, 0f, Screen.width * 0.34f, Screen.height), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+        }
+
+        private void DrawMainMenu()
+        {
+            float x = Screen.width * 0.68f;
+            float width = Screen.width * 0.29f;
+            GUIStyle title = new GUIStyle(GUI.skin.label) { fontSize = 30, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            GUIStyle subtitle = new GUIStyle(GUI.skin.label) { fontSize = 15, alignment = TextAnchor.MiddleCenter, wordWrap = true };
+            GUI.Label(new Rect(x, Screen.height * 0.13f, width, 54f), "PASILLO 14", title);
+            GUI.Label(new Rect(x + 12f, Screen.height * 0.22f, width - 24f, 48f), "Recoge los libros. Ayuda a tus compañeros. Evita a La Profesora.", subtitle);
+            float y = Screen.height * 0.36f;
+            if (MenuButton("INICIAR JUEGO", x + width * 0.15f, y, width * 0.70f, 48f)) StartGame();
+            if (MenuButton("CONFIGURACIÓN", x + width * 0.15f, y + 62f, width * 0.70f, 44f))
+            {
+                settingsReturnState = ScreenState.MainMenu;
+                screenState = ScreenState.Settings;
+            }
+            if (MenuButton("SALIR", x + width * 0.15f, y + 120f, width * 0.70f, 40f)) Application.Quit();
+            GUI.Label(new Rect(x + 10f, Screen.height - 48f, width - 20f, 26f), "WASD · Shift · E", subtitle);
+        }
+
+        private void DrawSettings()
+        {
+            float x = Screen.width * 0.675f;
+            float width = Screen.width * 0.30f;
+            GUIStyle heading = new GUIStyle(GUI.skin.label) { fontSize = 24, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            GUI.Label(new Rect(x, 34f, width, 42f), "CONFIGURACIÓN", heading);
+            GUI.Label(new Rect(x + 20f, 90f, width - 40f, 24f), "TECLAS · pulsa un botón y luego una tecla");
+            float y = 126f;
+            DrawBindingRow(x + 18f, y, "Mover arriba", moveUpKey, RebindAction.Up); y += 39f;
+            DrawBindingRow(x + 18f, y, "Mover izquierda", moveLeftKey, RebindAction.Left); y += 39f;
+            DrawBindingRow(x + 18f, y, "Mover abajo", moveDownKey, RebindAction.Down); y += 39f;
+            DrawBindingRow(x + 18f, y, "Mover derecha", moveRightKey, RebindAction.Right); y += 39f;
+            DrawBindingRow(x + 18f, y, "Correr", sprintKey, RebindAction.Sprint); y += 39f;
+            DrawBindingRow(x + 18f, y, "Entregar tarea", deliverKey, RebindAction.Deliver); y += 52f;
+            GUI.Label(new Rect(x + 20f, y, width - 40f, 22f), $"Volumen de música   {Mathf.RoundToInt(musicVolume * 100f)}%"); y += 25f;
+            float newMusic = GUI.HorizontalSlider(new Rect(x + 24f, y, width - 48f, 24f), musicVolume, 0f, 1f);
+            if (!Mathf.Approximately(newMusic, musicVolume)) { musicVolume = newMusic; SavePreferences(); }
+            y += 37f;
+            GUI.Label(new Rect(x + 20f, y, width - 40f, 22f), $"Volumen general   {Mathf.RoundToInt(soundVolume * 100f)}%"); y += 25f;
+            float newSound = GUI.HorizontalSlider(new Rect(x + 24f, y, width - 48f, 24f), soundVolume, 0f, 1f);
+            if (!Mathf.Approximately(newSound, soundVolume)) { soundVolume = newSound; SavePreferences(); }
+            if (rebindAction != RebindAction.None)
+                GUI.Label(new Rect(x + 16f, y + 38f, width - 32f, 24f), "Pulsa la tecla nueva (Esc cancela)");
+            if (MenuButton("VOLVER", x + width * 0.22f, Screen.height - 76f, width * 0.56f, 42f))
+            {
+                rebindAction = RebindAction.None;
+                screenState = settingsReturnState;
+                if (screenState == ScreenState.Playing) player?.Stop();
+            }
+        }
+
+        private void DrawBindingRow(float x, float y, string label, Key key, RebindAction action)
+        {
+            float width = Screen.width * 0.30f;
+            GUI.Label(new Rect(x, y, width * 0.55f, 30f), label);
+            string caption = rebindAction == action ? "Pulsa tecla…" : key.ToString();
+            if (GUI.Button(new Rect(x + width * 0.60f, y, width * 0.33f, 30f), caption))
+                rebindAction = action;
+        }
+
+        private void DrawEndScreen(bool won)
+        {
+            GUI.color = new Color(0.02f, 0.03f, 0.06f, 0.78f);
+            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+            float x = Screen.width * 0.32f;
+            float width = Screen.width * 0.36f;
+            GUIStyle title = new GUIStyle(GUI.skin.label) { fontSize = 40, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            GUI.Label(new Rect(x, Screen.height * 0.27f, width, 58f), won ? "¡TAREA ENTREGADA!" : "GAME OVER", title);
+            GUI.Label(new Rect(x, Screen.height * 0.39f, width, 38f), won ? "Tus compañeros recibieron sus libros." : "La Profesora te atrapó.", new GUIStyle(GUI.skin.label) { fontSize = 20, alignment = TextAnchor.MiddleCenter });
+            float y = Screen.height * 0.52f;
+            if (MenuButton(won ? "JUGAR DE NUEVO" : "INTENTAR DE NUEVO", x + width * 0.15f, y, width * 0.70f, 48f)) StartGame();
+            if (MenuButton("MENÚ PRINCIPAL", x + width * 0.15f, y + 62f, width * 0.70f, 42f))
+            {
+                for (int i = transform.childCount - 1; i >= 0; i--) Destroy(transform.GetChild(i).gameObject);
+                player = null; teacher = null; students.Clear();
+                screenState = ScreenState.MainMenu;
+                audioManager?.SetTheme(Pasillo14Audio.Theme.Menu);
+            }
+        }
+
+        private bool MenuButton(string label, float x, float y, float width, float height)
+        {
+            GUIStyle style = new GUIStyle(GUI.skin.button) { fontSize = 17, fontStyle = FontStyle.Bold };
+            bool clicked = GUI.Button(new Rect(x, y, width, height), label, style);
+            if (clicked) audioManager?.PlayUiSound();
+            return clicked;
         }
     }
 }

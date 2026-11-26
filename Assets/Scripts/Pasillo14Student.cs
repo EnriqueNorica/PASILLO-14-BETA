@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Pasillo14
 {
@@ -32,18 +31,24 @@ namespace Pasillo14
             if (visualRoot != null)
                 visualRoot.localPosition = Vector3.forward * (Mathf.Sin(Time.time * 2.1f) * 0.025f);
 
-            if (IsComplete || player == null || game == null || Keyboard.current == null ||
-                !Keyboard.current.eKey.wasPressedThisFrame)
-                return;
-            if (Vector2.Distance(transform.position, player.transform.position) > InteractionDistance)
-                return;
+        }
 
+        public bool IsNear(Pasillo14Player candidate)
+        {
+            return !IsComplete && Vector2.Distance(transform.position, candidate.transform.position) <= InteractionDistance;
+        }
+
+        public int DeliverFromPlayer()
+        {
+            if (IsComplete || player == null || game == null)
+                return 0;
             int delivered = game.DeliverBooksTo(this);
             if (delivered > 0 && IsComplete && !awarded)
             {
                 awarded = true;
                 game.MarkStudentServed(this);
             }
+            return delivered;
         }
 
         public string DisplayName => game != null ? game.GetStudentDisplayName(this) : "Compañero";

@@ -108,10 +108,14 @@ namespace Pasillo14
 
             float horizontal = 0f;
             float vertical = 0f;
-            if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) horizontal -= 1f;
-            if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) horizontal += 1f;
-            if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) vertical -= 1f;
-            if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) vertical += 1f;
+            Key leftKey = game != null ? game.MoveLeftKey : Key.A;
+            Key rightKey = game != null ? game.MoveRightKey : Key.D;
+            Key downKey = game != null ? game.MoveDownKey : Key.S;
+            Key upKey = game != null ? game.MoveUpKey : Key.W;
+            if (keyboard[leftKey].isPressed || keyboard.leftArrowKey.isPressed) horizontal -= 1f;
+            if (keyboard[rightKey].isPressed || keyboard.rightArrowKey.isPressed) horizontal += 1f;
+            if (keyboard[downKey].isPressed || keyboard.downArrowKey.isPressed) vertical -= 1f;
+            if (keyboard[upKey].isPressed || keyboard.upArrowKey.isPressed) vertical += 1f;
 
             Vector2 screenRight = Vector2.right;
             Vector2 screenUp = Vector2.up;
@@ -128,7 +132,8 @@ namespace Pasillo14
                     screenUp = projectedUp.normalized;
             }
             moveInput = (screenRight * horizontal + screenUp * vertical).normalized;
-            sprintHeld = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
+            Key sprintKey = game != null ? game.SprintKey : Key.LeftShift;
+            sprintHeld = keyboard[sprintKey].isPressed || (game != null && game.SprintButtonToggled);
 
             bool moving = moveInput.sqrMagnitude > 0.001f;
             sprinting = sprintHeld && moving && !exhausted && stamina > 0f;
