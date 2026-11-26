@@ -27,6 +27,7 @@ namespace Pasillo14
         private float timeRemaining;
         private bool hasWon;
         private bool wasCaught;
+        private bool timeoutLoss;
         private ScreenState screenState = ScreenState.MainMenu;
         private ScreenState settingsReturnState = ScreenState.MainMenu;
         private RebindAction rebindAction;
@@ -833,6 +834,7 @@ namespace Pasillo14
                 if (timeRemaining <= 0f)
                 {
                     wasCaught = true;
+                    timeoutLoss = true;
                     message = "Se acabó el tiempo.";
                     screenState = ScreenState.GameOver;
                     audioManager?.SetTheme(Pasillo14Audio.Theme.Caught);
@@ -856,6 +858,7 @@ namespace Pasillo14
             studentsServed = 0;
             hasWon = false;
             wasCaught = false;
+            timeoutLoss = false;
             sprintButtonToggled = false;
             message = "Recoge los libros y entrégaselos a tus compañeros.";
             students.Clear();
@@ -1112,7 +1115,8 @@ namespace Pasillo14
             float width = Screen.width * 0.36f;
             GUIStyle title = new GUIStyle(GUI.skin.label) { fontSize = 40, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             GUI.Label(new Rect(x, Screen.height * 0.27f, width, 58f), won ? "¡TAREA ENTREGADA!" : "GAME OVER", title);
-            GUI.Label(new Rect(x, Screen.height * 0.39f, width, 38f), won ? "Tus compañeros recibieron sus libros." : "La Profesora te atrapó.", new GUIStyle(GUI.skin.label) { fontSize = 20, alignment = TextAnchor.MiddleCenter });
+            string endMessage = won ? "Tus compañeros recibieron sus libros." : timeoutLoss ? "Se acabó el tiempo." : "La Profesora te atrapó.";
+            GUI.Label(new Rect(x, Screen.height * 0.39f, width, 38f), endMessage, new GUIStyle(GUI.skin.label) { fontSize = 20, alignment = TextAnchor.MiddleCenter });
             float y = Screen.height * 0.52f;
             if (MenuButton(won ? "JUGAR DE NUEVO" : "INTENTAR DE NUEVO", x + width * 0.15f, y, width * 0.70f, 48f)) StartGame();
             if (MenuButton("MENÚ PRINCIPAL", x + width * 0.15f, y + 62f, width * 0.70f, 42f))
