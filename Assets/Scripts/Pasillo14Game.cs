@@ -11,8 +11,8 @@ namespace Pasillo14
         private int collectedItems;
         private bool hasWon;
         private string message = "¡Reúne los 5 útiles y llega a la puerta!";
-        private Pasillo14Player player;
-        private static Sprite squareSprite;
+        private Pasillo14Player? player;
+        private static Sprite? squareSprite;
 
         public static Sprite SquareSprite
         {

@@ -8,7 +8,7 @@ namespace Pasillo14
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void StartPrototype()
         {
-            if (Object.FindObjectOfType<Pasillo14Game>() != null)
+            if (Object.FindAnyObjectByType<Pasillo14Game>() != null)
                 return;
 
             var gameObject = new GameObject("Pasillo 14 - Game");

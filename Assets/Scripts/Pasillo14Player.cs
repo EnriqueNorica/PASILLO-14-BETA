@@ -7,8 +7,8 @@ namespace Pasillo14
     public sealed class Pasillo14Player : MonoBehaviour
     {
         private const float MoveSpeed = 5f;
-        private Rigidbody2D body;
-        private Pasillo14Game game;
+        private Rigidbody2D? body;
+        private Pasillo14Game? game;
         private Vector2 moveInput;
         private bool stopped;
 
@@ -45,12 +45,12 @@ namespace Pasillo14
         private void OnTriggerEnter2D(Collider2D other)
         {
             var collectible = other.GetComponent<Pasillo14Collectible>();
-            if (collectible != null)
+            if (collectible != null && game != null)
                 collectible.Collect(game);
 
             var exit = other.GetComponent<Pasillo14Exit>();
             if (exit != null)
-                game.TryExit();
+                game?.TryExit();
         }
 
         public void Stop()
