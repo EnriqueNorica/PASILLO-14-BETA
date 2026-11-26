@@ -12,6 +12,8 @@ namespace Pasillo14
         private bool hasWon;
         private string message = "¡Reúne los 5 útiles y llega a la puerta!";
         private Pasillo14Player? player;
+        private Camera? followCamera;
+        private Vector3 cameraVelocity;
         private static Sprite? squareSprite;
 
         public static Sprite SquareSprite
@@ -40,10 +42,12 @@ namespace Pasillo14
                 camera = cameraObject.AddComponent<Camera>();
             }
 
-            camera.orthographic = true;
-            camera.orthographicSize = 5.7f;
-            camera.transform.position = new Vector3(0f, 0f, -10f);
+            camera.orthographic = false;
+            camera.fieldOfView = 48f;
+            camera.transform.position = new Vector3(0f, 6f, -14f);
+            camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.09f, 0.14f, 0.2f);
+            followCamera = camera;
 
             CreateBlock("Piso del pasillo", Vector2.zero, new Vector2(RoomWidth, RoomHeight),
                 new Color(0.77f, 0.82f, 0.78f), -10, false);
@@ -96,10 +100,28 @@ namespace Pasillo14
             playerObject.transform.position = position;
             playerObject.transform.localScale = new Vector3(0.65f, 0.8f, 1f);
 
+            var shadowObject = new GameObject("Sombra");
+            shadowObject.transform.SetParent(playerObject.transform, false);
+            shadowObject.transform.localPosition = new Vector3(0f, -0.48f, 0.08f);
+            shadowObject.transform.localScale = new Vector3(1.2f, 0.3f, 1f);
+            var shadowRenderer = shadowObject.AddComponent<SpriteRenderer>();
+            shadowRenderer.sprite = SquareSprite;
+            shadowRenderer.color = new Color(0.08f, 0.12f, 0.16f, 0.28f);
+            shadowRenderer.sortingOrder = 2;
+
             var renderer = playerObject.AddComponent<SpriteRenderer>();
             renderer.sprite = SquareSprite;
             renderer.color = new Color(0.12f, 0.34f, 0.82f);
             renderer.sortingOrder = 3;
+
+            var faceObject = new GameObject("Frente");
+            faceObject.transform.SetParent(playerObject.transform, false);
+            faceObject.transform.localPosition = new Vector3(0f, 0.2f, -0.02f);
+            faceObject.transform.localScale = new Vector3(0.24f, 0.12f, 1f);
+            var faceRenderer = faceObject.AddComponent<SpriteRenderer>();
+            faceRenderer.sprite = SquareSprite;
+            faceRenderer.color = new Color(0.95f, 0.91f, 0.75f);
+            faceRenderer.sortingOrder = 4;
 
             var body = playerObject.AddComponent<Rigidbody2D>();
             body.gravityScale = 0f;
@@ -188,13 +210,24 @@ namespace Pasillo14
             BuildRoom();
         }
 
+        private void LateUpdate()
+        {
+            if (followCamera == null || player == null)
+                return;
+
+            Vector3 target = player.transform.position + new Vector3(0f, 6f, -14f);
+            followCamera.transform.position = Vector3.SmoothDamp(
+                followCamera.transform.position, target, ref cameraVelocity, 0.16f);
+            followCamera.transform.LookAt(player.transform.position + new Vector3(0f, 0.2f, 0f), Vector3.up);
+        }
+
         private void OnGUI()
         {
-            var box = new Rect(16f, 16f, 390f, 92f);
+            var box = new Rect(16f, 16f, 450f, 104f);
             GUI.Box(box, GUIContent.none);
-            GUI.Label(new Rect(30f, 25f, 360f, 24f), $"PASILLO 14    Útiles: {collectedItems}/{RequiredItems}");
-            GUI.Label(new Rect(30f, 51f, 360f, 24f), message);
-            GUI.Label(new Rect(30f, 77f, 360f, 24f), "Mover: WASD o flechas    Reiniciar: R");
+            GUI.Label(new Rect(30f, 25f, 420f, 24f), $"PASILLO 14    Útiles: {collectedItems}/{RequiredItems}");
+            GUI.Label(new Rect(30f, 51f, 420f, 24f), message);
+            GUI.Label(new Rect(30f, 77f, 420f, 24f), "Mover: WASD o flechas    Correr: Shift    Reiniciar: R");
         }
     }
 }
