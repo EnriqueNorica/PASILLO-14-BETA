@@ -1,18 +1,29 @@
 # PASILLO 14 — videojuego 2D
 
-Prototipo de aventura arcade con vista superior, creado para Unity 6 y la plantilla 2D URP.
+Prototipo arcade de vista superior para Unity 6. El nivel se genera al iniciar la escena: recorre el pasillo, esquiva las mesas, reúne los útiles escolares y alcanza la puerta.
 
-## Cómo jugar
+## Requisitos
 
-1. Abre el proyecto con Unity **6000.6.4f1**.
-2. Abre `Assets/Scenes/SampleScene.unity`.
-3. Presiona **Play**.
+- Unity **6000.6.9f1**
+- Módulos incluidos en el proyecto: Universal Render Pipeline 2D e Input System.
+
+## Abrir y jugar
+
+1. Clona este repositorio:
+   ```bash
+   git clone https://github.com/EnriqueNorica/PASILLO-14-BETA.git
+   ```
+2. En Unity Hub, agrega la carpeta clonada y ábrela con la versión indicada.
+3. Abre `Assets/Scenes/SampleScene.unity` y presiona **Play**.
 4. Muévete con **WASD** o las **flechas**.
 5. Recoge los cinco útiles escolares y llega a la puerta del lado derecho.
-6. Presiona **R** después de ganar para reiniciar.
 
-El nivel se genera al iniciar la escena. No requiere paquetes adicionales a los que ya incluye el proyecto.
+Al ganar, presiona **R** para reiniciar el nivel.
 
-## Código
+## Estructura
 
-Los scripts del prototipo están en `Assets/Scripts`. `Pasillo14Bootstrap` inicia el juego al cargar la escena; el resto implementa el escenario, movimiento, coleccionables, salida y HUD.
+- `Assets/Scripts/`: inicialización automática, construcción del nivel, movimiento, coleccionables y salida.
+- `Assets/Scenes/SampleScene.unity`: escena incluida en la configuración de compilación.
+- `Packages/manifest.json` y `packages-lock.json`: dependencias y versiones del proyecto.
+
+El escenario se construye en tiempo de ejecución; no requiere descargar recursos externos. Las carpetas de caché del editor (como `Library` y `Temp`) están excluidas por `.gitignore`.
