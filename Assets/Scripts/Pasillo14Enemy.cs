@@ -10,7 +10,7 @@ namespace Pasillo14
         private const float ViewHalfAngle = 55f;
         private const float MoveSpeed = 4.8f;
         private const float CatchDistance = 0.75f;
-        private const float SearchDuration = 2.5f;
+        private const float SearchDuration = 6f;
 
         private Pasillo14Game? game;
         private Pasillo14Player? player;
@@ -34,6 +34,16 @@ namespace Pasillo14
                 if (toPlayer.sqrMagnitude > 0.001f)
                     Face(toPlayer.normalized);
             }
+        }
+
+        public void ReceiveSecurityAlert(Vector2 lastKnownPlayerPosition)
+        {
+            if (game == null || player == null)
+                return;
+
+            chasing = true;
+            searchTimer = SearchDuration;
+            lastSeenPosition = lastKnownPlayerPosition;
         }
 
         private void Update()
@@ -96,7 +106,9 @@ namespace Pasillo14
                 return;
 
             Vector2 current = body.position;
-            Vector2 destination = chasing ? lastSeenPosition : current;
+            Vector2 destination = chasing && game != null
+                ? game.GetPursuitWaypoint(current, lastSeenPosition)
+                : current;
             Vector2 offset = destination - current;
             if (offset.sqrMagnitude < 0.02f)
             {

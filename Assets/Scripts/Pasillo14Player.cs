@@ -54,7 +54,21 @@ namespace Pasillo14
             if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) vertical -= 1f;
             if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) vertical += 1f;
 
-            moveInput = new Vector2(horizontal, vertical).normalized;
+            Vector2 screenRight = Vector2.right;
+            Vector2 screenUp = Vector2.up;
+            var camera = Camera.main;
+            if (camera != null)
+            {
+                Vector3 right = camera.transform.right;
+                Vector3 up = camera.transform.up;
+                Vector2 projectedRight = new Vector2(right.x, right.y);
+                Vector2 projectedUp = new Vector2(up.x, up.y);
+                if (projectedRight.sqrMagnitude > 0.001f)
+                    screenRight = projectedRight.normalized;
+                if (projectedUp.sqrMagnitude > 0.001f)
+                    screenUp = projectedUp.normalized;
+            }
+            moveInput = (screenRight * horizontal + screenUp * vertical).normalized;
             sprintHeld = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
 
             bool moving = moveInput.sqrMagnitude > 0.001f;

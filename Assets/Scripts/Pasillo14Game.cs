@@ -7,14 +7,23 @@ namespace Pasillo14
     {
         private const float RoomWidth = 18f;
         private const float RoomDepth = 17f;
-        private const int RequiredItems = 5;
+        private const int RequiredBooks = 9;
+        private const float GameDuration = 240f;
 
         private readonly Dictionary<Color, Material> materials = new Dictionary<Color, Material>();
-        private int collectedItems;
+        private readonly List<Pasillo14Student> students = new List<Pasillo14Student>();
+        private int booksCollected;
+        private int booksDelivered;
+        private int bookInventory;
+        private int score;
+        private int studentsServed;
+        private float timeRemaining;
+        private bool securityAlarmTriggered;
         private bool hasWon;
         private bool wasCaught;
-        private string message = "¡Reúne los 5 útiles y llega a la salida!";
+        private string message = "Recoge los libros y entrégaselos a tus compañeros.";
         private Pasillo14Player? player;
+        private Pasillo14Enemy? teacher;
         private Camera? followCamera;
         private Vector3 cameraVelocity;
         private static Sprite? squareSprite;
@@ -37,6 +46,7 @@ namespace Pasillo14
 
         private void BuildRoom()
         {
+            timeRemaining = GameDuration;
             EnsureLighting();
             SetupCamera();
 
@@ -49,16 +59,21 @@ namespace Pasillo14
             CreateClassroomDividers();
             CreateClassroomInteriors();
             CreateLockers();
-            CreatePlayer(new Vector2(-7f, -0.7f));
+            CreatePlayer(new Vector2(-7f, 5.2f));
             CreateClassroomDoors();
-            CreateEnemy(new Vector2(1.5f, 0.7f));
+            CreateEnemy(new Vector2(7f, -6.7f));
+            CreateStudents();
+            CreateSecurityCameras();
 
-            CreateCollectible(new Vector2(-7f, 5.4f), new Color(1f, 0.73f, 0.18f));
-            CreateCollectible(new Vector2(-1.2f, -5.4f), new Color(0.95f, 0.35f, 0.26f));
-            CreateCollectible(new Vector2(0f, 5.7f), new Color(0.28f, 0.68f, 0.95f));
-            CreateCollectible(new Vector2(7f, -5.5f), new Color(0.63f, 0.42f, 0.88f));
-            CreateCollectible(new Vector2(7f, 5.3f), new Color(0.35f, 0.76f, 0.45f));
-            CreateExit(new Vector2(8.1f, 0f));
+            CreateCollectible(new Vector2(-7f, 6f), new Color(1f, 0.73f, 0.18f));
+            CreateCollectible(new Vector2(-4.4f, 4.5f), new Color(0.95f, 0.35f, 0.26f));
+            CreateCollectible(new Vector2(-1.1f, 5.6f), new Color(0.28f, 0.68f, 0.95f));
+            CreateCollectible(new Vector2(1.2f, 4.5f), new Color(0.63f, 0.42f, 0.88f));
+            CreateCollectible(new Vector2(-7f, -5.7f), new Color(0.35f, 0.76f, 0.45f));
+            CreateCollectible(new Vector2(-1.1f, -5.6f), new Color(0.95f, 0.65f, 0.23f));
+            CreateCollectible(new Vector2(1.2f, -4.5f), new Color(0.33f, 0.73f, 0.68f));
+            CreateCollectible(new Vector2(7f, 6.1f), new Color(0.70f, 0.47f, 0.88f));
+            CreateCollectible(new Vector2(7f, -5.4f), new Color(0.39f, 0.62f, 0.91f));
         }
 
         private void SetupCamera()
@@ -261,6 +276,10 @@ namespace Pasillo14
             var collider = door.AddComponent<BoxCollider2D>();
             collider.size = new Vector2(1.48f, 0.24f);
             collider.offset = new Vector2(0.74f, 0f);
+            var sensor = door.AddComponent<BoxCollider2D>();
+            sensor.size = new Vector2(2.65f, 2.55f);
+            sensor.offset = new Vector2(0.74f, 0f);
+            sensor.isTrigger = true;
 
             var leaf = new GameObject("Hoja de puerta");
             leaf.transform.SetParent(door.transform, false);
@@ -273,7 +292,7 @@ namespace Pasillo14
                 new Vector3(0.07f, 0.05f, 0.22f), new Color(0.91f, 0.73f, 0.38f));
 
             var doorLogic = door.AddComponent<Pasillo14Door>();
-            doorLogic.Initialize(player, collider, leaf.transform);
+            doorLogic.Initialize(collider, leaf.transform);
         }
 
         private GameObject CreateBlock(string objectName, Vector2 position, Vector2 size,
@@ -395,23 +414,82 @@ namespace Pasillo14
             var collider = enemyObject.AddComponent<BoxCollider2D>();
             collider.size = new Vector2(0.62f, 0.52f);
 
-            var enemy = enemyObject.AddComponent<Pasillo14Enemy>();
-            enemy.Initialize(this, player, body);
+            teacher = enemyObject.AddComponent<Pasillo14Enemy>();
+            teacher.Initialize(this, player, body);
+        }
+
+        private void CreateStudents()
+        {
+            CreateStudent("Compañera Ana", new Vector2(-5.5f, 7.35f), 2, new Color(0.31f, 0.58f, 0.75f));
+            CreateStudent("Compañero Luis", new Vector2(0.7f, -7.35f), 3, new Color(0.37f, 0.66f, 0.46f));
+            CreateStudent("Compañera Sofía", new Vector2(6.5f, 7.35f), 4, new Color(0.76f, 0.49f, 0.67f));
+        }
+
+        private void CreateStudent(string studentName, Vector2 position, int booksNeeded, Color uniformColor)
+        {
+            var studentObject = new GameObject(studentName);
+            studentObject.transform.SetParent(transform);
+            studentObject.transform.position = position;
+
+            var visuals = new GameObject("Apariencia");
+            visuals.transform.SetParent(studentObject.transform, false);
+            CreateVisualBox(visuals.transform, "Sombra", new Vector3(0f, 0f, 0.04f),
+                new Vector3(0.72f, 0.55f, 0.07f), new Color(0.08f, 0.10f, 0.12f));
+            CreateVisualBox(visuals.transform, "Uniforme", new Vector3(0f, 0f, 0.54f),
+                new Vector3(0.46f, 0.36f, 0.65f), uniformColor);
+            CreateVisualBox(visuals.transform, "Cabeza", new Vector3(0f, 0.02f, 1.02f),
+                new Vector3(0.33f, 0.32f, 0.34f), new Color(0.88f, 0.66f, 0.49f));
+            CreateVisualBox(visuals.transform, "Cabello", new Vector3(0f, 0.02f, 1.20f),
+                new Vector3(0.35f, 0.34f, 0.12f), new Color(0.22f, 0.16f, 0.13f));
+
+            var body = studentObject.AddComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.gravityScale = 0f;
+            body.freezeRotation = true;
+            body.interpolation = RigidbodyInterpolation2D.Interpolate;
+            var collider = studentObject.AddComponent<BoxCollider2D>();
+            collider.size = new Vector2(0.5f, 0.44f);
+            collider.isTrigger = true;
+
+            var student = studentObject.AddComponent<Pasillo14Student>();
+            student.Initialize(this, player, booksNeeded, visuals.transform);
+            students.Add(student);
+        }
+
+        private void CreateSecurityCameras()
+        {
+            CreateSecurityCamera(new Vector2(-5.5f, 0f), Vector2.right);
+            CreateSecurityCamera(Vector2.zero, Vector2.right);
+            CreateSecurityCamera(new Vector2(5.5f, 0f), Vector2.left);
+        }
+
+        private void CreateSecurityCamera(Vector2 position, Vector2 direction)
+        {
+            var cameraObject = new GameObject("Cámara de seguridad");
+            cameraObject.transform.SetParent(transform);
+            cameraObject.transform.position = position;
+            CreateVisualBox(cameraObject.transform, "Carcasa de cámara", new Vector3(0f, 0f, 2.55f),
+                new Vector3(0.48f, 0.34f, 0.28f), new Color(0.18f, 0.21f, 0.24f));
+            CreateVisualBox(cameraObject.transform, "Lente", new Vector3(direction.x * 0.25f, direction.y * 0.25f, 2.55f),
+                new Vector3(0.16f, 0.16f, 0.16f), new Color(0.18f, 0.56f, 0.79f));
+            var securityCamera = cameraObject.AddComponent<Pasillo14SecurityCamera>();
+            securityCamera.Initialize(this, player, teacher, direction);
         }
 
         private void CreateCollectible(Vector2 position, Color color)
         {
-            var item = new GameObject("Útil escolar");
+            var item = new GameObject("Libro escolar");
             item.transform.SetParent(transform);
             item.transform.position = new Vector3(position.x, position.y, 0.06f);
-            item.transform.localScale = new Vector3(0.42f, 0.58f, 1f);
-
-            var renderer = item.AddComponent<SpriteRenderer>();
-            renderer.sprite = SquareSprite;
-            renderer.color = color;
-            renderer.sortingOrder = 2;
+            CreateVisualBox(item.transform, "Páginas", new Vector3(0f, 0f, 0.045f),
+                new Vector3(0.38f, 0.52f, 0.09f), new Color(0.91f, 0.87f, 0.72f));
+            CreateVisualBox(item.transform, "Portada", new Vector3(0f, 0f, 0.105f),
+                new Vector3(0.43f, 0.58f, 0.045f), color);
+            CreateVisualBox(item.transform, "Título del libro", new Vector3(0f, 0.12f, 0.132f),
+                new Vector3(0.22f, 0.045f, 0.015f), new Color(0.94f, 0.87f, 0.66f));
 
             var collider = item.AddComponent<BoxCollider2D>();
+            collider.size = new Vector2(0.5f, 0.65f);
             collider.isTrigger = true;
             item.AddComponent<Pasillo14Collectible>();
         }
@@ -440,18 +518,90 @@ namespace Pasillo14
         {
             if (hasWon || wasCaught)
                 return;
-            collectedItems++;
-            message = collectedItems == RequiredItems
-                ? "¡Ya tienes todo! Llega a la salida."
-                : "¡Útil encontrado! Sigue buscando.";
+            booksCollected++;
+            bookInventory++;
+            score += 25;
+            message = $"Libro recogido. Llevas {bookInventory} para entregar.";
+        }
+
+        public int DeliverBooksTo(Pasillo14Student student)
+        {
+            if (bookInventory <= 0)
+            {
+                message = "No tienes libros para entregar.";
+                return 0;
+            }
+
+            int accepted = student.AddBooks(bookInventory);
+            if (accepted <= 0)
+            {
+                message = $"{student.DisplayName} ya recibió todos sus libros.";
+                return 0;
+            }
+
+            bookInventory -= accepted;
+            booksDelivered += accepted;
+            score += accepted * 100;
+            message = $"Entregaste {accepted} libro(s) a {student.DisplayName}.";
+            return accepted;
+        }
+
+        public void MarkStudentServed(Pasillo14Student student)
+        {
+            studentsServed++;
+            message = $"¡{student.DisplayName} ya tiene sus libros! ({studentsServed}/{students.Count})";
+            if (studentsServed < students.Count)
+                return;
+
+            hasWon = true;
+            score += Mathf.CeilToInt(timeRemaining) * 2;
+            message = $"¡Todos recibieron sus libros! Puntaje final: {score}. Presiona R para jugar otra vez.";
+            player?.Stop();
+        }
+
+        public string GetStudentDisplayName(Pasillo14Student student) => student.gameObject.name;
+
+        public Vector2 GetPursuitWaypoint(Vector2 pursuerPosition, Vector2 targetPosition)
+        {
+            float[] classroomDoorX = { -6f, 0f, 6f };
+            bool pursuerInClassroom = Mathf.Abs(pursuerPosition.y) > 3.05f;
+            bool targetInClassroom = Mathf.Abs(targetPosition.y) > 3.05f;
+
+            if (pursuerInClassroom)
+            {
+                bool sameClassroomSide = targetInClassroom && Mathf.Sign(pursuerPosition.y) == Mathf.Sign(targetPosition.y);
+                int pursuerRoom = Mathf.Clamp(Mathf.FloorToInt((pursuerPosition.x + 9f) / 6f), 0, 2);
+                int targetRoom = Mathf.Clamp(Mathf.FloorToInt((targetPosition.x + 9f) / 6f), 0, 2);
+                if (sameClassroomSide && pursuerRoom == targetRoom)
+                    return targetPosition;
+
+                float exitDoorX = NearestDoorX(pursuerPosition.x, classroomDoorX);
+                return new Vector2(exitDoorX, Mathf.Sign(pursuerPosition.y) * 2.75f);
+            }
+
+            if (targetInClassroom)
+            {
+                float entryDoorX = NearestDoorX(targetPosition.x, classroomDoorX);
+                return new Vector2(entryDoorX, Mathf.Sign(targetPosition.y) * 2.75f);
+            }
+
+            return targetPosition;
+        }
+
+        private static float NearestDoorX(float x, float[] doors)
+        {
+            float nearest = doors[0];
+            for (int i = 1; i < doors.Length; i++)
+                if (Mathf.Abs(x - doors[i]) < Mathf.Abs(x - nearest))
+                    nearest = doors[i];
+            return nearest;
         }
 
         public void TryExit()
         {
-            if (collectedItems < RequiredItems)
+            if (studentsServed < students.Count)
             {
-                int missing = RequiredItems - collectedItems;
-                message = missing == 1 ? "Te falta 1 útil escolar." : $"Te faltan {missing} útiles escolares.";
+                message = "Entrega los libros pendientes a tus compañeros.";
                 return;
             }
 
@@ -469,8 +619,27 @@ namespace Pasillo14
             player?.Stop();
         }
 
+        public void NotifySecurityAlert()
+        {
+            if (securityAlarmTriggered || hasWon || wasCaught)
+                return;
+            securityAlarmTriggered = true;
+            message = "¡Una cámara te detectó! La Profesora recibió el aviso.";
+        }
+
         private void Update()
         {
+            if (!hasWon && !wasCaught)
+            {
+                timeRemaining = Mathf.Max(0f, timeRemaining - Time.deltaTime);
+                if (timeRemaining <= 0f)
+                {
+                    wasCaught = true;
+                    message = "¡Se acabó el tiempo! Presiona R para intentarlo otra vez.";
+                    player?.Stop();
+                }
+            }
+
             if ((hasWon || wasCaught) && Pasillo14Player.RestartPressed())
                 RestartLevel();
         }
@@ -479,11 +648,18 @@ namespace Pasillo14
         {
             for (int i = transform.childCount - 1; i >= 0; i--)
                 Destroy(transform.GetChild(i).gameObject);
-            collectedItems = 0;
+            booksCollected = 0;
+            booksDelivered = 0;
+            bookInventory = 0;
+            score = 0;
+            studentsServed = 0;
+            securityAlarmTriggered = false;
             hasWon = false;
             wasCaught = false;
-            message = "¡Reúne los 5 útiles y llega a la salida!";
+            message = "Recoge los libros y entrégaselos a tus compañeros.";
+            students.Clear();
             player = null;
+            teacher = null;
             cameraVelocity = Vector3.zero;
             BuildRoom();
         }
@@ -501,20 +677,31 @@ namespace Pasillo14
 
         private void OnGUI()
         {
-            GUI.Box(new Rect(16f, 16f, 500f, 146f), GUIContent.none);
-            GUI.Label(new Rect(30f, 22f, 460f, 22f), $"PASILLO 14    Útiles: {collectedItems}/{RequiredItems}");
-            GUI.Label(new Rect(30f, 45f, 90f, 20f), "Estamina:");
-            GUI.Box(new Rect(105f, 48f, 170f, 14f), GUIContent.none);
+            GUI.Box(new Rect(16f, 16f, 550f, 200f), GUIContent.none);
+            GUI.Label(new Rect(30f, 22f, 510f, 22f), $"PASILLO 14    Libros: {booksCollected}/{RequiredBooks} recogidos | {booksDelivered} entregados | Mochila: {bookInventory}");
+            int seconds = Mathf.CeilToInt(timeRemaining);
+            GUI.Label(new Rect(30f, 45f, 500f, 20f), $"Tiempo: {seconds / 60:00}:{seconds % 60:00}    Puntaje: {score}    Compañeros: {studentsServed}/{students.Count}");
+            GUI.Label(new Rect(30f, 69f, 90f, 20f), "Estamina:");
+            GUI.Box(new Rect(105f, 72f, 170f, 14f), GUIContent.none);
             if (player != null)
             {
                 Color oldColor = GUI.color;
                 GUI.color = Color.Lerp(new Color(0.86f, 0.18f, 0.13f), new Color(0.22f, 0.78f, 0.36f), player.StaminaFraction);
-                GUI.Box(new Rect(108f, 51f, 164f * player.StaminaFraction, 8f), GUIContent.none);
+                GUI.Box(new Rect(108f, 75f, 164f * player.StaminaFraction, 8f), GUIContent.none);
                 GUI.color = oldColor;
             }
-            GUI.Label(new Rect(30f, 71f, 460f, 22f), message);
-            GUI.Label(new Rect(30f, 95f, 460f, 20f), "WASD/flechas: moverte    Shift: correr    E: abrir/cerrar aula");
-            GUI.Label(new Rect(30f, 119f, 460f, 20f), "Busca útiles en las aulas; evita que te vea La Profesora.");
+            GUI.Label(new Rect(30f, 95f, 500f, 22f), message);
+            GUI.Label(new Rect(30f, 121f, 500f, 20f), "WASD/flechas: moverte según cámara    Shift: correr");
+            GUI.Label(new Rect(30f, 145f, 500f, 20f), "Recoge libros, acércate a cada compañero y pulsa E para entregarlos.");
+            string deliveryStatus = "";
+            for (int i = 0; i < students.Count; i++)
+            {
+                Pasillo14Student student = students[i];
+                deliveryStatus += $"{student.gameObject.name}: {student.DeliveredBooks}/{student.RequiredBooks}";
+                if (i < students.Count - 1)
+                    deliveryStatus += "   ";
+            }
+            GUI.Label(new Rect(30f, 168f, 510f, 20f), deliveryStatus);
         }
     }
 }
