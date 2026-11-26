@@ -9,6 +9,7 @@ namespace Pasillo14
         private const float ViewDistance = 9f;
         private const float ViewHalfAngle = 55f;
         private const float MoveSpeed = 4.8f;
+        private const float PatrolSpeed = 2.1f;
         private const float CatchDistance = 0.75f;
         private const float SearchDuration = 6f;
 
@@ -18,7 +19,9 @@ namespace Pasillo14
         private Collider2D? ownCollider;
         private Vector2 facing = Vector2.left;
         private Vector2 lastSeenPosition;
+        private Vector2 patrolTarget;
         private float searchTimer;
+        private float patrolWaitTimer;
         private bool chasing;
 
         public void Initialize(Pasillo14Game owner, Pasillo14Player? target, Rigidbody2D rigidbody)
@@ -27,6 +30,8 @@ namespace Pasillo14
             player = target;
             body = rigidbody;
             ownCollider = GetComponent<Collider2D>();
+            patrolTarget = body.position;
+            PickPatrolTarget();
 
             if (player != null)
             {
@@ -68,7 +73,19 @@ namespace Pasillo14
             {
                 searchTimer -= Time.deltaTime;
                 if (searchTimer <= 0f)
+                {
                     chasing = false;
+                    patrolTarget = body != null ? body.position : (Vector2)transform.position;
+                    patrolWaitTimer = Random.Range(0.5f, 1.4f);
+                }
+            }
+            else if (patrolWaitTimer > 0f)
+            {
+                patrolWaitTimer -= Time.deltaTime;
+            }
+            else if (body != null && Vector2.Distance(body.position, patrolTarget) < 0.45f)
+            {
+                PickPatrolTarget();
             }
         }
 
@@ -106,9 +123,20 @@ namespace Pasillo14
                 return;
 
             Vector2 current = body.position;
-            Vector2 destination = chasing && game != null
-                ? game.GetPursuitWaypoint(current, lastSeenPosition)
-                : current;
+            Vector2 destination;
+            float speed;
+            if (chasing && game != null)
+            {
+                destination = game.GetPursuitWaypoint(current, lastSeenPosition);
+                speed = MoveSpeed;
+            }
+            else
+            {
+                destination = patrolTarget;
+                speed = PatrolSpeed;
+                if (patrolWaitTimer > 0f)
+                    destination = current;
+            }
             Vector2 offset = destination - current;
             if (offset.sqrMagnitude < 0.02f)
             {
@@ -118,7 +146,16 @@ namespace Pasillo14
 
             Vector2 direction = offset.normalized;
             Face(direction);
-            body.MovePosition(current + direction * (MoveSpeed * Time.fixedDeltaTime));
+            body.MovePosition(current + direction * (speed * Time.fixedDeltaTime));
+        }
+
+        private void PickPatrolTarget()
+        {
+            if (game == null)
+                return;
+
+            patrolTarget = game.GetRandomHallwayPatrolPoint();
+            patrolWaitTimer = Random.Range(0.8f, 2f);
         }
 
         private void Face(Vector2 direction)

@@ -5,8 +5,8 @@ namespace Pasillo14
     /// <summary>Watches a corridor sector and relays confirmed sightings to La Profesora.</summary>
     public sealed class Pasillo14SecurityCamera : MonoBehaviour
     {
-        private const float ViewDistance = 7f;
-        private const float HalfAngle = 105f;
+        private const float ViewDistance = 12.5f;
+        private const float HalfAngle = 42f;
         private const float AlertInterval = 0.45f;
 
         private Pasillo14Game? game;

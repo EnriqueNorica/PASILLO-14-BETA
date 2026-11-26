@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
 
 namespace Pasillo14
 {
@@ -26,6 +27,10 @@ namespace Pasillo14
         private bool exhausted;
         private float stamina = MaxStamina;
         private float recoveryTimer;
+        private Renderer[] visualRenderers = System.Array.Empty<Renderer>();
+        private Material[][] solidMaterials = System.Array.Empty<Material[]>();
+        private Material[][] ghostMaterials = System.Array.Empty<Material[]>();
+        private bool isOccluded;
 
         public float StaminaFraction => stamina / MaxStamina;
         public bool IsSprinting => sprinting;
@@ -34,6 +39,60 @@ namespace Pasillo14
         {
             game = owner;
             body = rigidbody;
+            visualRenderers = GetComponentsInChildren<Renderer>(true);
+            solidMaterials = new Material[visualRenderers.Length][];
+            ghostMaterials = new Material[visualRenderers.Length][];
+
+            for (int rendererIndex = 0; rendererIndex < visualRenderers.Length; rendererIndex++)
+            {
+                Material[] originals = visualRenderers[rendererIndex].sharedMaterials;
+                solidMaterials[rendererIndex] = originals;
+                var ghosts = new Material[originals.Length];
+                for (int materialIndex = 0; materialIndex < originals.Length; materialIndex++)
+                    ghosts[materialIndex] = CreateGhostMaterial(originals[materialIndex]);
+                ghostMaterials[rendererIndex] = ghosts;
+            }
+        }
+
+        public void SetOccluded(bool occluded)
+        {
+            if (isOccluded == occluded)
+                return;
+
+            isOccluded = occluded;
+            for (int i = 0; i < visualRenderers.Length; i++)
+                visualRenderers[i].sharedMaterials = occluded ? ghostMaterials[i] : solidMaterials[i];
+        }
+
+        private static Material CreateGhostMaterial(Material source)
+        {
+            var ghost = new Material(source);
+            Color baseColor = ghost.HasProperty("_BaseColor") ? ghost.GetColor("_BaseColor") : ghost.color;
+            Color ghostTint = Color.Lerp(baseColor, new Color(0.18f, 0.88f, 1f, 1f), 0.45f);
+            ghostTint.a = 0.36f;
+            ghost.color = ghostTint;
+            if (ghost.HasProperty("_BaseColor"))
+                ghost.SetColor("_BaseColor", ghostTint);
+            if (ghost.HasProperty("_Surface"))
+                ghost.SetFloat("_Surface", 1f);
+            if (ghost.HasProperty("_Blend"))
+                ghost.SetFloat("_Blend", 0f);
+            ghost.SetOverrideTag("RenderType", "Transparent");
+            ghost.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+            ghost.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+            ghost.SetInt("_ZWrite", 0);
+            ghost.DisableKeyword("_ALPHATEST_ON");
+            ghost.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            ghost.renderQueue = (int)RenderQueue.Transparent;
+            return ghost;
+        }
+
+        private void OnDestroy()
+        {
+            foreach (Material[] rendererMaterials in ghostMaterials)
+                foreach (Material material in rendererMaterials)
+                    if (material != null)
+                        Destroy(material);
         }
 
         private void Update()
