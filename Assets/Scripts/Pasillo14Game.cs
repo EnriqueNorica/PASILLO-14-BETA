@@ -10,6 +10,7 @@ namespace Pasillo14
 
         private int collectedItems;
         private bool hasWon;
+        private bool wasCaught;
         private string message = "¡Reúne los 5 útiles y llega a la puerta!";
         private Pasillo14Player? player;
         private Camera? followCamera;
@@ -44,7 +45,7 @@ namespace Pasillo14
 
             camera.orthographic = false;
             camera.fieldOfView = 48f;
-            camera.transform.position = new Vector3(0f, 6f, -14f);
+            camera.transform.position = new Vector3(7f, 8f, -14f);
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.09f, 0.14f, 0.2f);
             followCamera = camera;
@@ -69,6 +70,7 @@ namespace Pasillo14
                 new Color(0.55f, 0.34f, 0.22f), 0, true);
 
             CreatePlayer(new Vector2(-7f, -3.5f));
+            CreateEnemy(new Vector2(1.5f, 3.5f));
             CreateCollectible(new Vector2(-6f, 2.8f), new Color(1f, 0.78f, 0.2f));
             CreateCollectible(new Vector2(-1f, -2.4f), new Color(0.95f, 0.42f, 0.32f));
             CreateCollectible(new Vector2(0f, 3.4f), new Color(0.35f, 0.75f, 0.95f));
@@ -149,6 +151,47 @@ namespace Pasillo14
             item.AddComponent<Pasillo14Collectible>();
         }
 
+        private void CreateEnemy(Vector2 position)
+        {
+            var enemyObject = new GameObject("Vigilante");
+            enemyObject.transform.SetParent(transform);
+            enemyObject.transform.position = position;
+            enemyObject.transform.localScale = new Vector3(0.78f, 0.9f, 1f);
+
+            var shadowObject = new GameObject("Sombra del vigilante");
+            shadowObject.transform.SetParent(enemyObject.transform, false);
+            shadowObject.transform.localPosition = new Vector3(0f, -0.48f, 0.08f);
+            shadowObject.transform.localScale = new Vector3(1.2f, 0.3f, 1f);
+            var shadowRenderer = shadowObject.AddComponent<SpriteRenderer>();
+            shadowRenderer.sprite = SquareSprite;
+            shadowRenderer.color = new Color(0.08f, 0.12f, 0.16f, 0.28f);
+            shadowRenderer.sortingOrder = 2;
+
+            var renderer = enemyObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = SquareSprite;
+            renderer.color = new Color(0.76f, 0.16f, 0.14f);
+            renderer.sortingOrder = 3;
+
+            var faceObject = new GameObject("Frente del vigilante");
+            faceObject.transform.SetParent(enemyObject.transform, false);
+            faceObject.transform.localPosition = new Vector3(0f, 0.2f, -0.02f);
+            faceObject.transform.localScale = new Vector3(0.28f, 0.12f, 1f);
+            var faceRenderer = faceObject.AddComponent<SpriteRenderer>();
+            faceRenderer.sprite = SquareSprite;
+            faceRenderer.color = new Color(1f, 0.78f, 0.25f);
+            faceRenderer.sortingOrder = 4;
+
+            var body = enemyObject.AddComponent<Rigidbody2D>();
+            body.gravityScale = 0f;
+            body.freezeRotation = true;
+            body.interpolation = RigidbodyInterpolation2D.Interpolate;
+            var collider = enemyObject.AddComponent<BoxCollider2D>();
+            collider.size = new Vector2(0.85f, 0.9f);
+
+            var enemy = enemyObject.AddComponent<Pasillo14Enemy>();
+            enemy.Initialize(this, player, body);
+        }
+
         private void CreateExit(Vector2 position)
         {
             var exit = new GameObject("Puerta de salida");
@@ -192,9 +235,20 @@ namespace Pasillo14
                 player.Stop();
         }
 
+        public void CaughtByEnemy()
+        {
+            if (hasWon || wasCaught)
+                return;
+
+            wasCaught = true;
+            message = "¡El vigilante te atrapó! Presiona R para intentarlo otra vez.";
+            if (player != null)
+                player.Stop();
+        }
+
         private void Update()
         {
-            if (hasWon && Pasillo14Player.RestartPressed())
+            if ((hasWon || wasCaught) && Pasillo14Player.RestartPressed())
                 RestartLevel();
         }
 
@@ -205,6 +259,7 @@ namespace Pasillo14
 
             collectedItems = 0;
             hasWon = false;
+            wasCaught = false;
             message = "¡Reúne los 5 útiles y llega a la puerta!";
             player = null;
             BuildRoom();
@@ -215,7 +270,7 @@ namespace Pasillo14
             if (followCamera == null || player == null)
                 return;
 
-            Vector3 target = player.transform.position + new Vector3(0f, 6f, -14f);
+            Vector3 target = player.transform.position + new Vector3(7f, 8f, -14f);
             followCamera.transform.position = Vector3.SmoothDamp(
                 followCamera.transform.position, target, ref cameraVelocity, 0.16f);
             followCamera.transform.LookAt(player.transform.position + new Vector3(0f, 0.2f, 0f), Vector3.up);
@@ -223,11 +278,20 @@ namespace Pasillo14
 
         private void OnGUI()
         {
-            var box = new Rect(16f, 16f, 450f, 104f);
+            var box = new Rect(16f, 16f, 500f, 128f);
             GUI.Box(box, GUIContent.none);
-            GUI.Label(new Rect(30f, 25f, 420f, 24f), $"PASILLO 14    Útiles: {collectedItems}/{RequiredItems}");
-            GUI.Label(new Rect(30f, 51f, 420f, 24f), message);
-            GUI.Label(new Rect(30f, 77f, 420f, 24f), "Mover: WASD o flechas    Correr: Shift    Reiniciar: R");
+            GUI.Label(new Rect(30f, 23f, 460f, 24f), $"PASILLO 14    Útiles: {collectedItems}/{RequiredItems}");
+            GUI.Label(new Rect(30f, 48f, 90f, 20f), "Estamina:");
+            GUI.Box(new Rect(105f, 51f, 170f, 14f), GUIContent.none);
+            if (player != null)
+            {
+                Color previousColor = GUI.color;
+                GUI.color = Color.Lerp(new Color(0.86f, 0.18f, 0.13f), new Color(0.22f, 0.78f, 0.36f), player.StaminaFraction);
+                GUI.Box(new Rect(108f, 54f, 164f * player.StaminaFraction, 8f), GUIContent.none);
+                GUI.color = previousColor;
+            }
+            GUI.Label(new Rect(30f, 73f, 460f, 22f), message);
+            GUI.Label(new Rect(30f, 99f, 460f, 20f), "Mover: WASD o flechas    Correr: Shift    Reiniciar: R");
         }
     }
 }

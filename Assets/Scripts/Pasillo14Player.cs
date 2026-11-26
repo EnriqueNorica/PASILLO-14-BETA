@@ -11,12 +11,24 @@ namespace Pasillo14
         private const float Acceleration = 24f;
         private const float Braking = 32f;
         private const float TurnSpeed = 720f;
+        private const float MaxStamina = 5f;
+        private const float StaminaDrainPerSecond = 1.25f;
+        private const float StaminaRecoveryPerSecond = 0.9f;
+        private const float RecoveryDelay = 0.65f;
+        private const float ResumeSprintThreshold = 1f;
 
         private Rigidbody2D? body;
         private Pasillo14Game? game;
         private Vector2 moveInput;
         private bool sprinting;
+        private bool sprintHeld;
         private bool stopped;
+        private bool exhausted;
+        private float stamina = MaxStamina;
+        private float recoveryTimer;
+
+        public float StaminaFraction => stamina / MaxStamina;
+        public bool IsSprinting => sprinting;
 
         public void Initialize(Pasillo14Game owner, Rigidbody2D rigidbody)
         {
@@ -30,6 +42,7 @@ namespace Pasillo14
             if (keyboard == null || stopped)
             {
                 moveInput = Vector2.zero;
+                sprintHeld = false;
                 sprinting = false;
                 return;
             }
@@ -42,7 +55,29 @@ namespace Pasillo14
             if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) vertical += 1f;
 
             moveInput = new Vector2(horizontal, vertical).normalized;
-            sprinting = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
+            sprintHeld = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
+
+            bool moving = moveInput.sqrMagnitude > 0.001f;
+            sprinting = sprintHeld && moving && !exhausted && stamina > 0f;
+
+            if (sprinting)
+            {
+                stamina = Mathf.Max(0f, stamina - StaminaDrainPerSecond * Time.deltaTime);
+                recoveryTimer = RecoveryDelay;
+                if (stamina <= 0f)
+                {
+                    exhausted = true;
+                    sprinting = false;
+                }
+            }
+            else
+            {
+                recoveryTimer = Mathf.Max(0f, recoveryTimer - Time.deltaTime);
+                if (recoveryTimer <= 0f)
+                    stamina = Mathf.Min(MaxStamina, stamina + StaminaRecoveryPerSecond * Time.deltaTime);
+                if (exhausted && stamina >= ResumeSprintThreshold)
+                    exhausted = false;
+            }
         }
 
         private void FixedUpdate()
@@ -79,6 +114,8 @@ namespace Pasillo14
         {
             stopped = true;
             moveInput = Vector2.zero;
+            sprintHeld = false;
+            sprinting = false;
             if (body != null)
                 body.linearVelocity = Vector2.zero;
         }

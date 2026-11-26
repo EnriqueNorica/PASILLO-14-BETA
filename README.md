@@ -15,17 +15,18 @@ Prototipo arcade de vista superior con perspectiva 2.5D para Unity 6. Recorre el
    ```
 2. En Unity Hub, agrega la carpeta clonada y ábrela con la versión indicada.
 3. Abre `Assets/Scenes/SampleScene.unity` y presiona **Play**.
-4. Muévete con **WASD** o las **flechas**; mantén **Shift** para correr.
-5. Recoge los cinco útiles y llega a la puerta del lado derecho.
-6. Después de ganar, presiona **R** para reiniciar.
+4. Muévete con **WASD** o las **flechas**; mantén **Shift** para correr mientras tengas estamina.
+5. Vigila al vigilante: te detecta dentro de su cono de visión y no puede verte a través de muros ni mesas.
+6. Recoge los cinco útiles y llega a la puerta del lado derecho.
+7. Si te atrapa o ganas, presiona **R** para reiniciar.
 
 ## Movimiento y cámara
 
-El control conserva el plano de juego 2D, con aceleración y frenado graduales, giro hacia la dirección de marcha, carrera y cámara en perspectiva que sigue al jugador desde un ángulo elevado. La sombra y los coleccionables flotantes ayudan a dar profundidad sin añadir modelos ni descargas externas.
+El control conserva el plano de juego 2D, con aceleración y frenado graduales, giro hacia la dirección de marcha y carrera limitada por una barra de estamina que se recupera al caminar o detenerse. La cámara en perspectiva sigue al jugador desde una esquina elevada para dar una vista isométrica inclinada sin alejar demasiado la cámara. Un vigilante persigue al jugador cuando lo detecta; su cono comprueba la línea de visión con los colisionadores sólidos del escenario y busca durante unos segundos la última posición donde lo vio.
 
 ## Estructura
 
-- `Assets/Scripts/`: creación del nivel, movimiento, coleccionables, salida y HUD.
+- `Assets/Scripts/`: creación del nivel, movimiento y estamina, vigilante con detección, coleccionables, salida y HUD.
 - `Assets/Scenes/SampleScene.unity`: escena incluida en la configuración de compilación.
 - `Packages/manifest.json` y `packages-lock.json`: dependencias y versiones del proyecto.
 
