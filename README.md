@@ -1,6 +1,6 @@
 # PASILLO 14 — videojuego 2D
 
-Prototipo arcade de vista superior con perspectiva 2.5D para Unity 6. Recorre el pasillo, esquiva las mesas, reúne los útiles escolares y llega a la puerta.
+Videojuego escolar de movimiento 2D con escenario 2.5D para Unity 6. Recorre los pasillos y aulas, reúne los útiles y evita a La Profesora.
 
 ## Requisitos
 
@@ -16,17 +16,18 @@ Prototipo arcade de vista superior con perspectiva 2.5D para Unity 6. Recorre el
 2. En Unity Hub, agrega la carpeta clonada y ábrela con la versión indicada.
 3. Abre `Assets/Scenes/SampleScene.unity` y presiona **Play**.
 4. Muévete con **WASD** o las **flechas**; mantén **Shift** para correr mientras tengas estamina.
-5. Vigila al vigilante: te detecta dentro de su cono de visión y no puede verte a través de muros ni mesas.
-6. Recoge los cinco útiles y llega a la puerta del lado derecho.
-7. Si te atrapa o ganas, presiona **R** para reiniciar.
+5. Acércate a una puerta de aula y pulsa **E** para abrirla o cerrarla.
+6. La Profesora te persigue si te ve; los muros y muebles sólidos bloquean su visión.
+7. Recoge los cinco útiles y llega a la salida.
+8. Si te atrapa o ganas, presiona **R** para reiniciar.
 
 ## Movimiento y cámara
 
-El control conserva el plano de juego 2D, con aceleración y frenado graduales, giro hacia la dirección de marcha y carrera limitada por una barra de estamina que se recupera al caminar o detenerse. La cámara en perspectiva sigue al jugador desde una esquina elevada para dar una vista isométrica inclinada sin alejar demasiado la cámara. Un vigilante persigue al jugador cuando lo detecta; su cono comprueba la línea de visión con los colisionadores sólidos del escenario y busca durante unos segundos la última posición donde lo vio.
+El control conserva el plano de juego y las colisiones 2D. La cámara en perspectiva mira el escenario desde una esquina elevada, y los personajes, casilleros, pupitres, pizarrones y puertas usan volúmenes sencillos para crear una vista escolar 2.5D. El Estudiante camina a 2.8 unidades/s y corre con Shift a 4.8 unidades/s, la misma velocidad de persecución de La Profesora. La barra de estamina limita la carrera y se recupera cuando deja de correr. La Profesora tiene un cono de visión de 110°; su línea de visión se bloquea con colisionadores sólidos y busca durante unos segundos el último punto donde vio al estudiante.
 
 ## Estructura
 
-- `Assets/Scripts/`: creación del nivel, movimiento y estamina, vigilante con detección, coleccionables, salida y HUD.
+- `Assets/Scripts/`: construcción del entorno escolar, movimiento y estamina, puertas interactivas, La Profesora, detección, coleccionables, salida y HUD.
 - `Assets/Scenes/SampleScene.unity`: escena incluida en la configuración de compilación.
 - `Packages/manifest.json` y `packages-lock.json`: dependencias y versiones del proyecto.
 

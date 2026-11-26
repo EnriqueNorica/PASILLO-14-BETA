@@ -6,8 +6,8 @@ namespace Pasillo14
     [RequireComponent(typeof(Rigidbody2D))]
     public sealed class Pasillo14Player : MonoBehaviour
     {
-        private const float WalkSpeed = 4.5f;
-        private const float RunSpeed = 6.3f;
+        private const float WalkSpeed = 2.8f;
+        private const float RunSpeed = 4.8f;
         private const float Acceleration = 24f;
         private const float Braking = 32f;
         private const float TurnSpeed = 720f;

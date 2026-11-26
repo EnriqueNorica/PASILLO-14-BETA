@@ -14,8 +14,8 @@ namespace Pasillo14
 
         private void Update()
         {
-            transform.localPosition = startPosition + Vector3.up * (Mathf.Sin(Time.time * 2.4f) * 0.06f);
-            transform.Rotate(0f, 0f, 55f * Time.deltaTime);
+            transform.localPosition = startPosition + Vector3.forward * (Mathf.Sin(Time.time * 2.4f) * 0.06f);
+            transform.Rotate(0f, 0f, 55f * Time.deltaTime, Space.Self);
         }
 
         public void Collect(Pasillo14Game game)
